@@ -69,6 +69,7 @@ const ExportedApiProductsDirName = "api-products"
 const ExportedAppsDirName = "apps"
 const ExportedMigrationArtifactsDirName = "migration"
 const CertificatesDirName = "certs"
+const APISecurityMutualSsl = "mutualssl"
 
 var DefaultExportDirPath = filepath.Join(ConfigDirPath, DefaultExportDirName)
 var DefaultCertDirPath = filepath.Join(ConfigDirPath, CertificatesDirName)
@@ -121,11 +122,6 @@ const LogPrefixError = "[ERROR]: "
 
 // String Constants
 const SearchAndTag = "&"
-
-// Regex Validation
-const RepoValidRegex = `^[\w\d\-\.\:]*\/?[\w\d\-]+$`
-const UsernameValidRegex = `^[\w\d\-]*$`
-const UrlValidRegex = `^(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+$`
 
 // Other
 const DefaultTokenValidityPeriod = 3600
