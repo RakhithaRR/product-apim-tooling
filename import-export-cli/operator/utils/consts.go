@@ -38,7 +38,7 @@ const ApiOpWso2Namespace = "wso2-system"
 
 // K8s Kinds
 const kindKey = "kind"
-const namespaceKey = "namespace"
+const NamespaceKey = "namespace"
 
 // API Operator CRDs
 const CrdKind = "CustomResourceDefinition"

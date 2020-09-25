@@ -43,12 +43,24 @@ var uninstallApiOperatorCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		isConfirm := flagForceUninstallApiOperator
 
+		var operatorNs string
+		artifactsNs := k8sUtils.ApiOpWso2Namespace
+		if flagOperatorArtifactsNamespace != "" {
+			artifactsNs = flagOperatorArtifactsNamespace
+		}
+		if flagApiOperatorNamespace != "" {
+			operatorNs = flagApiOperatorNamespace
+		} else {
+			operatorNs = artifactsNs
+		}
+
 		if !flagForceUninstallApiOperator {
 			isConfirmStr, err := utils.ReadInputString(
 				fmt.Sprintf("\nUninstall \"%s\" and all related resources: APIs, Securities, Rate Limitings and Target Endpoints\n"+
-					"[WARNING] Remove the namespace: %s\n"+
+					"[WARNING] Remove the artifacts namespace: %s\n"+
+					"[WARNING] Remove the operator namespace: %s\n"+
 					"Are you sure",
-					k8sUtils.ApiOperator, k8sUtils.ApiOpWso2Namespace),
+					k8sUtils.ApiOperator, artifactsNs, operatorNs),
 				utils.Default{Value: "N", IsDefault: true},
 				"",
 				false,
@@ -67,14 +79,18 @@ var uninstallApiOperatorCmd = &cobra.Command{
 			// delete the namespace "wso2-system"
 			// namespace, "wso2-system" contains all the artifacts and configs
 			// deleting the namespace: "wso2-system", will remove all the artifacts and configs
-			fmt.Printf("Removing namespace: %s\nThis operation will take some minutes...\n", k8sUtils.ApiOpWso2Namespace)
-
 			deleteErrors := []error{
-				k8sUtils.ExecuteCommand(k8sUtils.Kubectl, k8sUtils.K8sDelete, "namespace", k8sUtils.ApiOpWso2Namespace),
 				k8sUtils.ExecuteCommand(k8sUtils.Kubectl, k8sUtils.K8sDelete, "crd", k8sUtils.ApiOpCrdApi),
 				k8sUtils.ExecuteCommand(k8sUtils.Kubectl, k8sUtils.K8sDelete, "crd", k8sUtils.ApiOpCrdSecurity),
 				k8sUtils.ExecuteCommand(k8sUtils.Kubectl, k8sUtils.K8sDelete, "crd", k8sUtils.ApiOpCrdRateLimiting),
 				k8sUtils.ExecuteCommand(k8sUtils.Kubectl, k8sUtils.K8sDelete, "crd", k8sUtils.ApiOpCrdTargetEndpoint),
+			}
+
+			fmt.Printf("Removing namespace: %s\nThis operation will take some minutes...\n", artifactsNs)
+			deleteErrors = append(deleteErrors, k8sUtils.ExecuteCommand(k8sUtils.Kubectl, k8sUtils.K8sDelete, "namespace", artifactsNs))
+			if !strings.EqualFold(artifactsNs, operatorNs) {
+				fmt.Printf("Removing namespace: %s\nThis operation will take some minutes...\n", operatorNs)
+				deleteErrors = append(deleteErrors, k8sUtils.ExecuteCommand(k8sUtils.Kubectl, k8sUtils.K8sDelete, "namespace", operatorNs))
 			}
 
 			for _, err := range deleteErrors {
@@ -91,4 +107,6 @@ var uninstallApiOperatorCmd = &cobra.Command{
 func init() {
 	uninstallCmd.AddCommand(uninstallApiOperatorCmd)
 	uninstallApiOperatorCmd.Flags().BoolVar(&flagForceUninstallApiOperator, "force", false, "Force uninstall API Operator")
+	uninstallApiOperatorCmd.Flags().StringVarP(&flagOperatorArtifactsNamespace, "namespace", "n", "", "Remove operator artifacts in a specific namespace")
+	uninstallApiOperatorCmd.Flags().StringVarP(&flagApiOperatorNamespace, "operator-namespace", "o", "", "Uninstall operator in a specific namespace")
 }

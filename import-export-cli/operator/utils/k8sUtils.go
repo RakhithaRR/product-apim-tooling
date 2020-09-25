@@ -76,7 +76,7 @@ func K8sCreateSecretFromInputs(secretName string, namespace string, server strin
 	}
 
 	// apply created secret yaml file
-	if err := K8sApplyFromStdin(dockerSecret); err != nil {
+	if err := K8sApplyFromStdin(dockerSecret, namespace); err != nil {
 		utils.HandleErrorAndExit("Error creating docker secret credentials", err)
 	}
 }
@@ -102,7 +102,7 @@ func K8sCreateSecretFromFile(secretName string, namespace string, filePath strin
 	}
 
 	// apply secret
-	if err = K8sApplyFromStdin(secret); err != nil {
+	if err = K8sApplyFromStdin(secret, namespace); err != nil {
 		utils.HandleErrorAndExit("Error creating secret from file", err)
 	}
 }
@@ -118,7 +118,7 @@ func K8sApplyFromFile(fileList ...string) error {
 }
 
 // K8sApplyFromBytes applies resources by content
-func K8sApplyFromBytes(data [][]byte) error {
+func K8sApplyFromBytes(data [][]byte, args ...string) error {
 	dir, _ := ioutil.TempDir("", "example")
 	defer os.RemoveAll(dir) // clean up
 
@@ -130,12 +130,18 @@ func K8sApplyFromBytes(data [][]byte) error {
 		}
 	}
 
-	return ExecuteCommand(Kubectl, K8sApply, "-f", dir)
+	if len(args) > 0 {
+		namespace := args[0]
+		return ExecuteCommand(Kubectl, K8sApply, "-f", dir, "-n", namespace)
+	} else {
+		return ExecuteCommand(Kubectl, K8sApply, "-f", dir)
+	}
+
 }
 
 // K8sApplyFromStdin applies resources from standard input
-func K8sApplyFromStdin(stdInputs string) error {
-	return ExecuteCommandFromStdin(stdInputs, Kubectl, K8sApply, "-f", "-")
+func K8sApplyFromStdin(stdInputs string, namespace string) error {
+	return ExecuteCommandFromStdin(stdInputs, Kubectl, K8sApply, "-f", "-", "-n", namespace)
 }
 
 // ExecuteCommand executes the command with args and prints output, errors in standard output, error

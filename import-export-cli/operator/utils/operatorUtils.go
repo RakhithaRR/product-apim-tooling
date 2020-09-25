@@ -62,21 +62,42 @@ func GetVersion(name string, envVar string, defaultVersion string, versionValida
 }
 
 // CreateControllerConfigs apply (kubectl apply) configs to the k8s cluster
-func CreateControllerConfigs(configFile string, maxTimeSec int, resourceTypes ...string) {
+func CreateControllerConfigs(configFile string, maxTimeSec int, operatorNs string, namespace string, resourceTypes ...string) {
 	configData := *readConfigData(configFile)
 
 	// filter CRDs and other configs
 	type YAML map[string]interface{}
 	var crds []YAML
+	var opConfs []YAML
 	var nonCrds []YAML
 	for _, data := range configData {
 		dec := yaml.NewDecoder(bytes.NewReader(data))
 		for yml := make(YAML); dec.Decode(&yml) == nil; yml = make(YAML) {
 			if strings.EqualFold(fmt.Sprint(yml[kindKey]), CrdKind) ||
-				strings.EqualFold(fmt.Sprint(yml[kindKey]), namespaceKey) {
+				strings.EqualFold(fmt.Sprint(yml[kindKey]), NamespaceKey) {
+				if !strings.EqualFold(namespace,ApiOpWso2Namespace) && strings.EqualFold(fmt.Sprint(yml[kindKey]), NamespaceKey) {
+					continue
+				}
 				crds = append(crds, yml)
 			} else {
-				nonCrds = append(nonCrds, yml)
+				kind := yml[kindKey]
+				switch kind {
+				case "Deployment":
+					yml["metadata"].(map[interface{}]interface{})[NamespaceKey] = operatorNs
+					opConfs = append(opConfs, yml)
+				case "ClusterRole":
+					yml["metadata"].(map[interface{}]interface{})[NamespaceKey] = operatorNs
+					opConfs = append(opConfs, yml)
+				case "ServiceAccount":
+					yml["metadata"].(map[interface{}]interface{})[NamespaceKey] = operatorNs
+					opConfs = append(opConfs, yml)
+				case "ClusterRoleBinding":
+					yml["metadata"].(map[interface{}]interface{})[NamespaceKey] = operatorNs
+					yml["subjects"].([]interface{})[0].(map[interface{}]interface{})[NamespaceKey] = operatorNs
+					opConfs = append(opConfs, yml)
+				default:
+					nonCrds = append(nonCrds, yml)
+				}
 			}
 		}
 	}
@@ -93,6 +114,22 @@ func CreateControllerConfigs(configFile string, maxTimeSec int, resourceTypes ..
 	if len(crdsData) > 0 {
 		// apply all crds once to lower request count to k8s cluster
 		err := K8sApplyFromBytes(crdsData)
+		if err != nil {
+			utils.HandleErrorAndExit("Error applying CRDs to K8s cluster", err)
+		}
+	}
+
+	// applying operator configs
+	operatorData := make([][]byte, 0, 5)
+	for _, opConf := range opConfs {
+		data, err := yaml.Marshal(opConf)
+		if err != nil {
+			utils.HandleErrorAndExit("Error parsing yaml content", err)
+		}
+		operatorData = append(operatorData, data)
+	}
+	if len(operatorData) > 0 {
+		err := K8sApplyFromBytes(operatorData)
 		if err != nil {
 			utils.HandleErrorAndExit("Error applying CRDs to K8s cluster", err)
 		}
@@ -118,7 +155,7 @@ func CreateControllerConfigs(configFile string, maxTimeSec int, resourceTypes ..
 		}
 
 		// apply all configs once to lower request count to k8s cluster
-		err := K8sApplyFromBytes(nonCrdsData)
+		err := K8sApplyFromBytes(nonCrdsData, namespace)
 		if err != nil {
 			utils.HandleErrorAndExit("Error applying configs to k8s cluster", err)
 		}

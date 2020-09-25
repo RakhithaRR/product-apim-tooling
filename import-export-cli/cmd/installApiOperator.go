@@ -31,10 +31,14 @@ const installApiOperatorCmdShortDesc = "Install API Operator"
 const installApiOperatorCmdLongDesc = "Install API Operator in the configured K8s cluster"
 const installApiOperatorCmdExamples = utils.ProjectName + ` ` + installCmdLiteral + ` ` + installApiOperatorCmdLiteral + `
 ` + utils.ProjectName + ` ` + installCmdLiteral + ` ` + installApiOperatorCmdLiteral + ` -f path/to/operator/configs
-` + utils.ProjectName + ` ` + installCmdLiteral + ` ` + installApiOperatorCmdLiteral + ` -f path/to/operator/config/file.yaml`
+` + utils.ProjectName + ` ` + installCmdLiteral + ` ` + installApiOperatorCmdLiteral + ` -f path/to/operator/config/file.yaml
+` + utils.ProjectName + ` ` + installCmdLiteral + ` ` + installApiOperatorCmdLiteral + ` -f path/to/operator/configs -n namespace
+` + utils.ProjectName + ` ` + installCmdLiteral + ` ` + installApiOperatorCmdLiteral + ` -f path/to/operator/configs -n namespace -o operator-namespace`
 
 // flags
 var flagApiOperatorFile string
+var flagOperatorArtifactsNamespace string
+var flagApiOperatorNamespace string
 
 // flags for installing api-operator in batch mode
 var flagBmRegistryType string
@@ -90,10 +94,23 @@ var installApiOperatorCmd = &cobra.Command{
 			registry.ReadInputsFromFlags(flagsValues) // read values from flags with respect to registry type
 		}
 
+		// setting the relevant namespaces based on flags
+		var operatorNs string
+		artifactsNs := k8sUtils.ApiOpWso2Namespace
+		if flagOperatorArtifactsNamespace != "" {
+			artifactsNs = flagOperatorArtifactsNamespace
+		}
+		if flagApiOperatorNamespace != "" {
+			operatorNs = flagApiOperatorNamespace
+		} else {
+			operatorNs = artifactsNs
+		}
+
 		// installing operator and configs if -f flag given
 		// otherwise settings configs only
-		k8sUtils.CreateControllerConfigs(configFile, 20, k8sUtils.ApiOpCrdSecurity)
-		registry.UpdateConfigsSecrets()
+		k8sUtils.CreateControllerConfigs(configFile, 20, operatorNs, artifactsNs, k8sUtils.ApiOpCrdSecurity)
+		registry.UpdateConfigsSecrets(artifactsNs)
+
 
 		fmt.Println("[Setting to K8s Mode]")
 		utils.SetToK8sMode()
@@ -115,6 +132,8 @@ func getGivenFlagsValues() *map[string]registry.FlagValue {
 func init() {
 	installCmd.AddCommand(installApiOperatorCmd)
 	installApiOperatorCmd.Flags().StringVarP(&flagApiOperatorFile, "from-file", "f", "", "Path to API Operator directory")
+	installApiOperatorCmd.Flags().StringVarP(&flagOperatorArtifactsNamespace, "namespace", "n", "", "Operator artifacts namespace")
+	installApiOperatorCmd.Flags().StringVarP(&flagApiOperatorNamespace, "operator-namespace", "o", "", "Operator namespace")
 
 	// flags for installing api-operator in batch mode
 	// only the flag "registry-type" is required and others are registry specific flags
