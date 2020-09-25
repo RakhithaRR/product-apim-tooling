@@ -42,11 +42,10 @@ var AmazonEcrRegistry = &Registry{
 		reg.Repository.Name = repository
 		reg.Repository.KeyFile = credFile
 	},
-	Run: func(reg *Registry) {
-		createAmazonEcrConfig()
+	Run: func(reg *Registry, namespace string) {
+		createAmazonEcrConfig(namespace)
 		k8sUtils.K8sCreateSecretFromFile(
-			k8sUtils.AwsCredentialsSecret, k8sUtils.ApiOpWso2Namespace,
-			reg.Repository.KeyFile, k8sUtils.AwsCredentialsFile,
+			k8sUtils.AwsCredentialsSecret, namespace, reg.Repository.KeyFile, k8sUtils.AwsCredentialsFile,
 		)
 	},
 	Flags: Flags{
@@ -98,7 +97,7 @@ func readAmazonEcrInputs() (string, string) {
 }
 
 // createAmazonEcrConfig creates K8S secret with credentials for Amazon ECR
-func createAmazonEcrConfig() {
+func createAmazonEcrConfig(namespace string) {
 	configJson := `{ "credsStore": "ecr-login" }`
 
 	tempFile, err := utils.CreateTempFile("config-*.json", []byte(configJson))
@@ -111,7 +110,7 @@ func createAmazonEcrConfig() {
 	configMap, err := k8sUtils.GetCommandOutput(
 		k8sUtils.Kubectl, k8sUtils.K8sCreate, k8sUtils.K8sConfigMap,
 		k8sUtils.AmazonCredHelperConfMap, "--from-file=config.json="+tempFile,
-		"-n", k8sUtils.ApiOpWso2Namespace,
+		"-n", namespace,
 		"--dry-run", "-o", "yaml",
 	)
 	if err != nil {
@@ -119,7 +118,7 @@ func createAmazonEcrConfig() {
 	}
 
 	// apply config map
-	if err = k8sUtils.K8sApplyFromStdin(configMap); err != nil {
+	if err = k8sUtils.K8sApplyFromStdin(configMap, namespace); err != nil {
 		utils.HandleErrorAndExit("Error creating docker config for Amazon ECR", err)
 	}
 }

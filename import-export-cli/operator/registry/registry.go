@@ -35,7 +35,7 @@ type Registry struct {
 	Repository Repository                                            // Repository name
 	Option     int                                                   // Option to be choose the CLI registry list
 	Read       func(reg *Registry, flagValues *map[string]FlagValue) // Function to be called when getting inputs, if flagValues is nil get inputs interactively
-	Run        func(reg *Registry)                                   // Function to be called when updating k8s secrets
+	Run        func(reg *Registry, namespace string)                 // Function to be called when updating k8s secrets
 	Flags      Flags                                                 // Required and Optional flags
 }
 
@@ -79,11 +79,11 @@ func ReadInputsFromFlags(flagValues *map[string]FlagValue) {
 }
 
 // UpdateConfigsSecrets updates controller config with registry type and creates secrets with credentials
-func UpdateConfigsSecrets() {
+func UpdateConfigsSecrets(namespace string) {
 	// set registry first since this can throw error if api operator not installed. If error occur no need to rollback secret.
-	updateDockerRegistryConfig(registries[optionToExec].Name, registries[optionToExec].Repository.Name)
+	updateDockerRegistryConfig(registries[optionToExec].Name, registries[optionToExec].Repository.Name, namespace)
 	// create secret
-	registries[optionToExec].Run(registries[optionToExec])
+	registries[optionToExec].Run(registries[optionToExec], namespace)
 }
 
 // ChooseRegistryInteractive lists registries in the CLI and reads a choice from user
@@ -144,7 +144,7 @@ func ValidateFlags(flagsValues *map[string]FlagValue) {
 }
 
 // updateDockerRegistryConfig sets the repository type value and the repository in the config: `controller-config`
-func updateDockerRegistryConfig(registryType string, repository string) {
+func updateDockerRegistryConfig(registryType string, repository string, namespace string) {
 	registryConfigMapYaml, _ := box.Get("/kubernetes_resources/docker_registry_conf.yaml")
 
 	registryConfigMap := make(map[interface{}]interface{})
@@ -155,6 +155,7 @@ func updateDockerRegistryConfig(registryType string, repository string) {
 	// set configurations
 	registryConfigMap["data"].(map[interface{}]interface{})[k8sUtils.CtrlConfigRegType] = registryType
 	registryConfigMap["data"].(map[interface{}]interface{})[k8sUtils.CtrlConfigReg] = repository
+	registryConfigMap["metadata"].(map[interface{}]interface{})[k8sUtils.NamespaceKey] = namespace
 
 	configuredRegConfigMap, err := yaml.Marshal(registryConfigMap)
 	if err != nil {
@@ -162,7 +163,7 @@ func updateDockerRegistryConfig(registryType string, repository string) {
 	}
 
 	// apply controller config config map back
-	if err := k8sUtils.K8sApplyFromStdin(string(configuredRegConfigMap)); err != nil {
+	if err := k8sUtils.K8sApplyFromStdin(string(configuredRegConfigMap), namespace); err != nil {
 		utils.HandleErrorAndExit("Error creating controller-configs", err)
 	}
 }

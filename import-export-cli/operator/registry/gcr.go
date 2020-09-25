@@ -53,15 +53,15 @@ var GcrRegistry = &Registry{
 		reg.Repository.Name = getGcrProjectName(svcAccKeyFile)
 		reg.Repository.KeyFile = svcAccKeyFile
 	},
-	Run: func(reg *Registry) {
+	Run: func(reg *Registry, namespace string) {
 		data, err := ioutil.ReadFile(reg.Repository.KeyFile)
 		if err != nil {
 			utils.HandleErrorAndExit("Error reading GCR service account key json file", err)
 		}
 
-		k8sUtils.K8sCreateSecretFromFile(k8sUtils.GcrSvcAccKeySecret, k8sUtils.ApiOpWso2Namespace,
+		k8sUtils.K8sCreateSecretFromFile(k8sUtils.GcrSvcAccKeySecret, namespace,
 			reg.Repository.KeyFile, k8sUtils.GcrSvcAccKeyFile)
-		k8sUtils.K8sCreateSecretFromInputs(k8sUtils.GcrPullSecret, k8sUtils.ApiOpWso2Namespace,
+		k8sUtils.K8sCreateSecretFromInputs(k8sUtils.GcrPullSecret, namespace,
 			"gcr.io", "_json_key", string(data))
 	},
 	Flags: Flags{

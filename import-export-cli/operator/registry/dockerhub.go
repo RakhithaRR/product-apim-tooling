@@ -71,8 +71,8 @@ var DockerHubRegistry = &Registry{
 		reg.Repository.Username = username
 		reg.Repository.Password = password
 	},
-	Run: func(reg *Registry) {
-		k8sUtils.K8sCreateSecretFromInputs(k8sUtils.DockerRegCredSecret, k8sUtils.ApiOpWso2Namespace,
+	Run: func(reg *Registry, namespace string) {
+		k8sUtils.K8sCreateSecretFromInputs(k8sUtils.DockerRegCredSecret, namespace,
 			reg.Repository.ServerUrl, reg.Repository.Username, reg.Repository.Password)
 		reg.Repository.Password = "" // clear password
 	},

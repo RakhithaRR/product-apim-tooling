@@ -43,7 +43,8 @@ var changeCmd = &cobra.Command{
 const changeDockerRegistryCmdLiteral = "registry"
 const changeDockerRegistryCmdShortDesc = "Change the registry"
 const changeDockerRegistryCmdLongDesc = "Change the registry to be pushed the built micro-gateway image"
-const changeDockerRegistryCmdExamples = utils.ProjectName + ` ` + changeCmdLiteral + ` ` + changeDockerRegistryCmdLiteral
+const changeDockerRegistryCmdExamples = utils.ProjectName + ` ` + changeCmdLiteral + ` ` + changeDockerRegistryCmdLiteral + `
+` + utils.ProjectName + ` ` + changeCmdLiteral + ` ` + changeDockerRegistryCmdLiteral + ` -n namespace`
 
 // changeDockerRegistryCmd represents the change registry command
 var changeDockerRegistryCmd = &cobra.Command{
@@ -75,13 +76,19 @@ var changeDockerRegistryCmd = &cobra.Command{
 			registry.ReadInputsFromFlags(flagsValues) // read values from flags with respect to registry type
 		}
 
-		registry.UpdateConfigsSecrets()
+		if flagOperatorArtifactsNamespace != "" {
+			registry.UpdateConfigsSecrets(flagOperatorArtifactsNamespace)
+		} else {
+			registry.UpdateConfigsSecrets(k8sUtils.ApiOpWso2Namespace)
+		}
+
 	},
 }
 
 func init() {
 	RootCmd.AddCommand(changeCmd)
 	changeCmd.AddCommand(changeDockerRegistryCmd)
+	changeDockerRegistryCmd.Flags().StringVarP(&flagOperatorArtifactsNamespace, "namespace", "n", "", "Operator artifacts namespace")
 
 	// flags for installing api-operator in batch mode
 	// only the flag "registry-type" is required and others are registry specific flags
